@@ -3,3 +3,7 @@
 .wave{bottom:auto;top:99px;left:22px}
 @media(max-width:900px) and (min-width:601px){.wave{bottom:auto;top:91px;left:18px}}
 @media(max-width:600px){.wave{bottom:auto;top:91px;left:18px}}
+
+/* Platform-independent SVG flags and honest device volume controls. */
+[hidden]{display:none!important}.flag img{display:block;width:31px;height:23px;object-fit:cover;border-radius:3px;box-shadow:0 1px 3px #102e2526}.player-symbol img{display:block;width:32px;height:24px;object-fit:cover;border-radius:3px;box-shadow:0 2px 6px #102e2533}.volume-group{display:flex;align-items:center;gap:10px}.mute-button{display:grid;place-items:center}.mute-button[aria-pressed="true"]{background:#ffffff20;color:#f2d5ae}.volume-note{font-size:9px;color:#d3ddc8;max-width:92px;line-height:1.6;text-align:right}.volume input{cursor:pointer;touch-action:pan-y;min-height:32px}.player-controls{gap:13px}
+@media(max-width:600px){.volume-group{gap:8px}.volume-note{font-size:8px;max-width:68px}.player-controls{gap:8px}.mute-button{width:33px;height:33px}.volume input{width:64px}.flag img{width:28px;height:21px}.player{flex-wrap:wrap;row-gap:12px}.player-main{flex:1 1 120px}.player-controls{flex-shrink:0}}

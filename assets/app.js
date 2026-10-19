@@ -1,14 +1,14 @@
 'use strict';
 const stations = [
-  { id: 'cairo', name: 'إذاعة القاهرة', country: 'مصر', flag: '🇪🇬', url: 'https://stream.radiojar.com/8s5u5tpdtwzuv' },
-  { id: 'saudi', name: 'إذاعة السعودية', country: 'المملكة العربية السعودية', flag: '🇸🇦', url: 'https://live.kwikmotion.com/sbrksaquranradiolive/srpksaquranradio/playlist.m3u8' },
-  { id: 'kuwait', name: 'إذاعة الكويت', country: 'دولة الكويت', flag: '🇰🇼', url: 'https://kwtkrdota.cdn.mangomolo.com/qrrdo/qrrdo.stream_aac/chunklist.m3u8' },
-  { id: 'sharjah', name: 'إذاعة الشارقة', country: 'الإمارات العربية المتحدة', flag: '🇦🇪', url: 'https://live.kwikmotion.com/smcquranlive/quranradiolive/playlist.m3u8' }
+  { id: 'cairo', name: 'إذاعة القاهرة', country: 'مصر', flag: 'assets/flags/eg.svg', url: 'https://stream.radiojar.com/8s5u5tpdtwzuv' },
+  { id: 'saudi', name: 'إذاعة السعودية', country: 'المملكة العربية السعودية', flag: 'assets/flags/sa.svg', url: 'https://live.kwikmotion.com/sbrksaquranradiolive/srpksaquranradio/playlist.m3u8' },
+  { id: 'kuwait', name: 'إذاعة الكويت', country: 'دولة الكويت', flag: 'assets/flags/kw.svg', url: 'https://kwtkrdota.cdn.mangomolo.com/qrrdo/qrrdo.stream_aac/chunklist.m3u8' },
+  { id: 'sharjah', name: 'إذاعة الشارقة', country: 'الإمارات العربية المتحدة', flag: 'assets/flags/ae.svg', url: 'https://live.kwikmotion.com/smcquranlive/quranradiolive/playlist.m3u8' }
 ];
 const audio = document.getElementById('radio');
 const grid = document.getElementById('stations');
 const master = document.getElementById('master-toggle');
-grid.innerHTML = stations.map(s => `<article class="card" id="card-${s.id}" aria-labelledby="title-${s.id}"><svg class="ornament" viewBox="0 0 90 114" fill="none" aria-hidden="true"><path d="M13 113V49C13 29 35 26 45 7c10 19 32 22 32 42v64M22 113V51c0-15 16-19 23-31 7 12 23 16 23 31v62" stroke="currentColor" stroke-width="1.2"/><path d="m45 40 5 9 10 5-10 5-5 10-5-10-10-5 10-5zM26 88h38M26 96h38M26 104h38" stroke="currentColor" stroke-width=".9"/></svg><div class="card-top"><span class="flag" role="img" aria-label="علم ${s.country}">${s.flag}</span><span class="tag">بث مباشر</span></div><h3 id="title-${s.id}">${s.name}</h3><p class="country">${s.country}</p><div class="card-bottom"><span class="card-status">اضغط للاستماع</span><button type="button" class="station-toggle" data-station="${s.id}" aria-label="تشغيل ${s.name}" aria-pressed="false">▶</button><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div></article>`).join('');
+grid.innerHTML = stations.map(s => `<article class="card" id="card-${s.id}" aria-labelledby="title-${s.id}"><svg class="ornament" viewBox="0 0 90 114" fill="none" aria-hidden="true"><path d="M13 113V49C13 29 35 26 45 7c10 19 32 22 32 42v64M22 113V51c0-15 16-19 23-31 7 12 23 16 23 31v62" stroke="currentColor" stroke-width="1.2"/><path d="m45 40 5 9 10 5-10 5-5 10-5-10-10-5 10-5zM26 88h38M26 96h38M26 104h38" stroke="currentColor" stroke-width=".9"/></svg><div class="card-top"><span class="flag"><img src="${s.flag}" alt="علم ${s.country}" width="32" height="24"></span><span class="tag">بث مباشر</span></div><h3 id="title-${s.id}">${s.name}</h3><p class="country">${s.country}</p><div class="card-bottom"><span class="card-status">اضغط للاستماع</span><button type="button" class="station-toggle" data-station="${s.id}" aria-label="تشغيل ${s.name}" aria-pressed="false">▶</button><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div></article>`).join('');
 // A single media element owns all playback. Every connection has its own generation.
 let current = null, state = 'idle', hls = null, generation = 0;
 let wanted = false, retryCount = 0;
@@ -33,7 +33,7 @@ function render(message) {
   }
   document.getElementById('player-title').textContent = current ? current.name + ' — القرآن الكريم' : 'اختر إذاعة لتبدأ';
   document.getElementById('player-status').textContent = message;
-  document.getElementById('player-symbol').textContent = current ? current.flag : '۞';
+  document.getElementById('player-symbol').innerHTML = current ? `<img src="${current.flag}" alt="علم ${current.country}" width="32" height="24">` : '۞';
   master.disabled = !current;
   master.textContent = isRunning() ? '■' : '▶';
   master.setAttribute('aria-label', isRunning() ? 'إيقاف الإذاعة' : 'تشغيل الإذاعة');
@@ -158,8 +158,7 @@ function start(station) { wanted = true; retryCount = 0; connect(station); }
 function toggle(station) { if (current === station && isRunning()) stop(); else start(station); }
 for (const station of stations) document.getElementById(`card-${station.id}`).addEventListener('click', () => toggle(station));
 master.addEventListener('click', () => { if (current) toggle(current); });
-document.getElementById('volume').addEventListener('input', event => { audio.volume = Number(event.target.value); });
-audio.volume = 0.8;
+setupVolumeControls();
 window.addEventListener('offline', offline);
 window.addEventListener('online', () => {
   if (wanted && current && state === 'offline') { retryCount = 0; connect(current); }
@@ -173,3 +172,57 @@ if (navigator.mediaSession && navigator.mediaSession.setActionHandler) {
   } catch (_) { /* Media Session support varies by browser. */ }
 }
 render('لم يتم تشغيل أي محطة');
+
+// iOS reserves media volume for the device buttons. Avoid a misleading slider.
+function setupVolumeControls() {
+  const slider = document.getElementById('volume');
+  const control = document.getElementById('volume-control');
+  const note = document.getElementById('volume-note');
+  const mute = document.getElementById('mute-toggle');
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let adjustable = !ios;
+  if (adjustable) {
+    const before = audio.volume;
+    try {
+      audio.volume = 0.43;
+      adjustable = Math.abs(audio.volume - 0.43) < 0.01;
+      audio.volume = before;
+    } catch (_) { adjustable = false; }
+  }
+  control.hidden = !adjustable;
+  note.hidden = adjustable;
+  slider.disabled = !adjustable;
+  let lastAudibleVolume = 0.8;
+  const speaker = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>';
+  const silent = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM16 9l6 6M22 9l-6 6"/></svg>';
+  const sync = () => {
+    const muted = audio.muted || (adjustable && audio.volume === 0);
+    mute.innerHTML = muted ? silent : speaker;
+    mute.setAttribute('aria-label', muted ? 'إلغاء كتم الصوت' : 'كتم الصوت');
+    mute.setAttribute('title', muted ? 'إلغاء كتم الصوت' : 'كتم الصوت');
+    mute.setAttribute('aria-pressed', String(!!muted));
+    if (adjustable) {
+      slider.value = String(audio.volume);
+      slider.setAttribute('aria-valuetext', `${Math.round(audio.volume * 100)} بالمئة`);
+    }
+  };
+  slider.addEventListener('input', () => {
+    if (!adjustable) return;
+    const value = Number(slider.value);
+    if (!Number.isFinite(value)) return;
+    audio.volume = Math.max(0, Math.min(1, value));
+    if (audio.volume > 0) lastAudibleVolume = audio.volume;
+    audio.muted = audio.volume === 0;
+    sync();
+  });
+  mute.addEventListener('click', () => {
+    const wasMuted = audio.muted || (adjustable && audio.volume === 0);
+    audio.muted = !wasMuted;
+    if (wasMuted && adjustable && audio.volume === 0) audio.volume = lastAudibleVolume;
+    sync();
+  });
+  audio.addEventListener('volumechange', sync);
+  if (adjustable) audio.volume = 0.8;
+  sync();
+}
