@@ -27,10 +27,11 @@ export class AdtsFrames {
   }
 }
 const URL_BASE = 'https://live.kwikmotion.com/smcquranlive/quranradiolive/icecast.audio';
-export async function relaySharjah(request, fetcher = fetch) {
+export async function relaySharjah(request, fetcher = fetch, report = () => {}) {
   if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', {status: 405, headers: {Allow:'GET, HEAD'}});
   let reader = null, connection = null, closed = false, failures = 0, sessionBytes = 0, unframedBytes = 0;
   const frames = new AdtsFrames();
+  let phase = "connect", sourceStatus = null, sourceType = null;
   const end = () => {
     if (closed) return;
     closed = true; connection?.abort();
@@ -46,6 +47,7 @@ export async function relaySharjah(request, fetcher = fetch) {
   }
   async function open() {
     if (closed) throw new Error('Listener disconnected');
+    phase = "connect"; sourceStatus = null; sourceType = null;
     connection = new AbortController();
     const timer = setTimeout(() => connection.abort(), 8000);
     let response;
@@ -55,11 +57,13 @@ export async function relaySharjah(request, fetcher = fetch) {
         headers:{Accept:'audio/aac, audio/aacp', 'Icy-MetaData':'0', 'Cache-Control':'no-cache'}
       });
     } finally {clearTimeout(timer);}
+    phase = 'response'; sourceStatus = response.status;
     const type = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    sourceType = type;
     if (!response.ok || !response.body || !['audio/aac','audio/aacp'].includes(type) || response.headers.has('icy-metaint')) {
       await response.body?.cancel(); throw new Error('Unsupported AAC response');
     }
-    reader = response.body.getReader();
+    phase = 'audio'; reader = response.body.getReader();
   }
   async function nextFrames() {
     while (!closed) {
@@ -84,6 +88,9 @@ export async function relaySharjah(request, fetcher = fetch) {
         sessionBytes += output.length; failures = 0; unframedBytes = 0;
         return output;
       } catch (error) {
+        if (!closed) report({phase, sourceStatus, sourceType,
+          error: error.name || 'Error',
+          message: String(error.message || error).replace(/https?:\/\/[^\s]+/g, '[source]').slice(0, 240)});
         await discardConnection();
         if (closed || ++failures >= 3) throw error;
         // Retry failures in the server, including failures of the reconnect.
@@ -116,4 +123,16 @@ export async function relaySharjah(request, fetcher = fetch) {
       status:502,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Athir-Relay':'sharjah-7.1'}
     });
   }
+}
+
+// Test the SAME connection, MIME and AAC validation path used by playback.
+// Fixed source only; no arbitrary proxy, credentials, or station replacement.
+export async function diagnoseSharjah(request, fetcher = fetch) {
+  const started = Date.now(); let issue = null, attempts = 0;
+  const probe = new Request(request.url, {method:'HEAD', signal:request.signal});
+  const result = await relaySharjah(probe, fetcher, item => {issue = item; attempts++;});
+  return Response.json({version:'7.1.1', station:'sharjah',
+    ok: result.ok, audioValidated: result.ok, elapsedMs:Date.now()-started,
+    failedAttempts:attempts, lastFailure:issue},
+    {headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 }

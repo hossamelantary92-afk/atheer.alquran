@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {AdtsFrames,relaySharjah} from '../relay/sharjah.mjs';
+import {AdtsFrames,relaySharjah,diagnoseSharjah} from '../relay/sharjah.mjs';
 function frame(payload=32,frequency=3) {
  const size=7+payload;const b=new Uint8Array(size).fill(0x22);
  b.set([255,241,0x40|(frequency<<2),0x80|(size>>11),(size>>3)&255,((size&7)<<5)|31,252]);return b;
@@ -48,4 +48,14 @@ test('does not forward bytes until AAC is validated, and cancels upstream',async
  let signal;
  const good=await relaySharjah(req(),async(u,o)=>{signal=o.signal;return new Response(holdBody(frame()),{headers:{'Content-Type':'audio/aac'}})});
  await good.body.cancel();assert.equal(signal.aborted,true);
+});
+
+test('diagnosis distinguishes an upstream rejection from an AAC or network error',async()=>{
+ const denied=await diagnoseSharjah(req(),async()=>new Response('denied',{status:403,headers:{'Content-Type':'text/html'}}));
+ const d=await denied.json();assert.equal(d.ok,false);assert.equal(d.lastFailure.phase,'response');
+ assert.equal(d.lastFailure.sourceStatus,403);assert.equal(d.failedAttempts,3);
+ const network=await diagnoseSharjah(req(),async()=>{throw new TypeError('fetch failed')});
+ const n=await network.json();assert.equal(n.lastFailure.phase,'connect');assert.equal(n.lastFailure.sourceStatus,null);
+ const good=await diagnoseSharjah(req(),async()=>new Response(holdBody(frame()),{headers:{'Content-Type':'audio/aac'}}));
+ const g=await good.json();assert.equal(g.ok,true);assert.equal(g.audioValidated,true);
 });
