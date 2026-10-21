@@ -10,7 +10,7 @@ run('start(stations[0])');emit('playing');assert.equal(navigator.mediaSession.pl
 document.hidden=true;document.visibilityState='hidden';docEvents.visibilitychange.forEach(f=>f());assert.equal(audio.paused,false);emit('waiting');assert(!timers.some(t=>!t.off&&t.ms===35000));
 actions.pause();assert.equal(run('wanted'),false);assert.equal(audio.paused,true);actions.play();emit('playing');assert.equal(run('state'),'playing');
 run('stop()');emit('error');assert.equal(run('state'),'stopped');assert.equal(run('wanted'),false);assert.deepEqual(run('stations.map(s=>s.id)').join(','),'cairo,saudi,kuwait,sharjah');
-// Verify that the optional relay never replaces the direct first attempt.
+// Other stations still try direct first; Sharjah needs overlap filtering from the start.
 context.window.ATHIR_CONFIG={relayBase:'/api/audio'};
 const ctx2={...context,window:{...context.window},navigator:{...navigator}};
 vm.createContext(ctx2);vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../assets/app.js'),'utf8'),ctx2);
@@ -20,3 +20,5 @@ const retry=timers.filter(t=>!t.off&&t.ms===1500).at(-1);assert(retry);retry.f()
 assert.equal(audio.src,'/api/audio/cairo');
 vm.runInContext('start(stations[0])',ctx2);assert.equal(audio.src,'https://stream.radiojar.com/8s5u5tpdtwzuv');
 console.log('PASS: background keeps audio, no hidden timeout, Media Session metadata/actions, stop cancels stale events, station filtering.');
+
+vm.runInContext('start(stations[3])',ctx2);assert.match(audio.src,/\/api\/audio\/sharjah\?athir=/);

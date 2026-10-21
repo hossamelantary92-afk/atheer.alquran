@@ -3,7 +3,7 @@ const stations = [
   { id: 'cairo', name: 'إذاعة القاهرة', country: 'مصر', flag: 'assets/flags/eg.svg', relay: 'cairo', url: 'https://stream.radiojar.com/8s5u5tpdtwzuv' },
   { id: 'saudi', name: 'إذاعة السعودية', country: 'المملكة العربية السعودية', flag: 'assets/flags/sa.svg', relay: 'saudi', url: 'https://stream.radiojar.com/0tpy1h0kxtzuv' },
   { id: 'kuwait', name: 'إذاعة الكويت', country: 'دولة الكويت', flag: 'assets/flags/kw.svg', url: 'https://kwtkrdota.cdn.mangomolo.com/qrrdo/qrrdo.stream_aac/chunklist.m3u8' },
-  { id: 'sharjah', fresh: true, relay: 'sharjah', finiteReconnect: true, name: 'إذاعة الشارقة', country: 'الإمارات العربية المتحدة', flag: 'assets/flags/ae.svg', url: 'https://live.kwikmotion.com/smcquranlive/quranradiolive/icecast.audio' }
+  { id: 'sharjah', preferRelay: true, fresh: true, relay: 'sharjah', finiteReconnect: true, name: 'إذاعة الشارقة', country: 'الإمارات العربية المتحدة', flag: 'assets/flags/ae.svg', url: 'https://live.kwikmotion.com/smcquranlive/quranradiolive/icecast.audio' }
 ];
 const audio = document.getElementById('radio');
 const grid = document.getElementById('stations');
@@ -208,7 +208,7 @@ function connect(station) {
     } else fail('المتصفح لا يدعم هذا البث · جرّب متصفحًا أحدث', token, false);
   } else { audio.src = sourceURL; play(); }
 }
-function start(station) { wanted = true; retryCount = 0; relaySelected = false; connect(station); }
+function start(station) { wanted = true; retryCount = 0; relaySelected = Boolean(station.preferRelay && relayBase); connect(station); }
 function toggle(station) { if (current === station && isRunning()) stop(); else start(station); }
 for (const station of stations) document.getElementById(`card-${station.id}`).addEventListener('click', () => toggle(station));
 master.addEventListener('click', () => { if (current) toggle(current); });

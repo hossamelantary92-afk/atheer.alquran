@@ -1,3 +1,4 @@
+import {ReconnectOverlap} from './overlap.mjs';
 // Sharjah sends an ADTS AAC stream. Only COMPLETE frames may cross a
 // reconnect boundary: passing an incomplete last frame corrupts the decoder.
 export class AdtsFrames {
@@ -31,6 +32,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
   if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', {status: 405, headers: {Allow:'GET, HEAD'}});
   let reader = null, connection = null, closed = false, failures = 0, sessionBytes = 0, unframedBytes = 0;
   const frames = new AdtsFrames();
+  const overlap = new ReconnectOverlap(); let novelSessionBytes = 0;
   let phase = "connect", sourceStatus = null, sourceType = null;
   const end = () => {
     if (closed) return;
@@ -43,7 +45,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
   async function discardConnection() {
     connection?.abort();
     if (reader) {try {await reader.cancel();} catch (_) {}}
-    reader = null; frames.reset(); sessionBytes = 0; unframedBytes = 0;
+    reader = null; frames.reset(); sessionBytes = 0; unframedBytes = 0; novelSessionBytes = 0;
   }
   async function open() {
     if (closed) throw new Error('Listener disconnected');
@@ -64,7 +66,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
     if (!response.ok || !response.body || !['audio/aac','audio/aacp'].includes(type) || response.headers.has('icy-metaint')) {
       await response.body?.cancel(); throw new Error('Unsupported AAC response');
     }
-    phase = 'audio'; reader = response.body.getReader();
+    overlap.begin(); phase = 'audio'; reader = response.body.getReader();
   }
   async function nextFrames() {
     while (!closed) {
@@ -76,7 +78,10 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
         if (item.done) {
           // An actual successful session may end early: keep the downstream
           // audio response alive while opening a new upstream connection.
+          const tail = overlap.finish();
+          if (tail.length) {novelSessionBytes += tail.length; failures=0; return tail;}
           if (!sessionBytes) throw new Error('Empty AAC response');
+          if (!novelSessionBytes) throw new Error('Source replayed old AAC audio');
           await discardConnection(); continue;
         }
         const output = frames.push(item.value);
@@ -86,8 +91,11 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
           if (unframedBytes > 65536) throw new Error('No complete AAC frames');
           continue;
         }
-        sessionBytes += output.length; failures = 0; unframedBytes = 0;
-        return output;
+        sessionBytes += output.length; unframedBytes = 0;
+        const fresh = overlap.push(output);
+        if (!fresh.length) continue;
+        novelSessionBytes += fresh.length; failures = 0;
+        return fresh;
       } catch (error) {
         if (!closed) report({phase, sourceStatus, sourceType,
           error: error.name || 'Error',
@@ -102,7 +110,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
     throw new Error('Listener disconnected');
   }
   const headers = {'Content-Type':'audio/aac', 'Cache-Control':'no-store, no-transform',
-    'X-Content-Type-Options':'nosniff', 'X-Accel-Buffering':'no', 'X-Athir-Relay':'sharjah-7.1.2'};
+    'X-Content-Type-Options':'nosniff', 'X-Accel-Buffering':'no', 'X-Athir-Relay':'sharjah-7.1.3'};
   try {
     // Verify actual AAC bytes, not just the provider's Content-Type header.
     const first = await nextFrames();
@@ -121,7 +129,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
     return new Response(body,{headers});
   } catch (_) {
     end(); return new Response('Sharjah audio source is temporarily unavailable.', {
-      status:502,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Athir-Relay':'sharjah-7.1.2'}
+      status:502,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Athir-Relay':'sharjah-7.1.3'}
     });
   }
 }
@@ -132,7 +140,7 @@ export async function diagnoseSharjah(request, fetcher = fetch) {
   const started = Date.now(); let issue = null, attempts = 0;
   const probe = new Request(request.url, {method:'HEAD', signal:request.signal});
   const result = await relaySharjah(probe, fetcher, item => {issue = item; attempts++;});
-  return Response.json({version:'7.1.2', station:'sharjah',
+  return Response.json({version:'7.1.3', station:'sharjah',
     ok: result.ok, audioValidated: result.ok, elapsedMs:Date.now()-started,
     failedAttempts:attempts, lastFailure:issue},
     {headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
