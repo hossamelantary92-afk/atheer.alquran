@@ -1,0 +1,16 @@
+{
+  "name": "athir-quran-radio",
+  "version": "7.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs test/*.test.cjs",
+    "deploy": "npx wrangler@4 deploy",
+    "dev:cloudflare": "npx wrangler@4 dev",
+    "build": "node scripts/build.mjs"
+  }
+}

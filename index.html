@@ -2,10 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 <meta name="theme-color" content="#173f36"><meta name="description" content="إذاعات القرآن الكريم من القاهرة والسعودية والكويت والشارقة، في مساحة هادئة للاستماع.">
 <title>أثير القرآن — إذاعات القرآن الكريم</title>
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/style.css?v=5">
-<script defer src="assets/vendor/hls.min.js"></script><script defer src="assets/app.js?v=5"></script>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/style.css?v=7">
+<script defer src="assets/config.js?v=7"></script><script defer src="assets/vendor/hls.min.js"></script><script defer src="assets/app.js?v=7"></script>
 </head>
 <body>
 <header class="topbar"><a class="brand" href="./" aria-label="أثير القرآن، الرئيسية"><span class="brand-icon">۞</span><span>أثير القرآن<small>رفيق لحظات السكينة</small></span></a><span class="header-note"><i></i> إذاعات مباشرة</span></header>
@@ -16,6 +17,6 @@
 </main>
 <aside class="player" aria-label="مشغّل الإذاعة"><div class="player-main"><span id="player-symbol" class="player-symbol">۞</span><div><strong id="player-title">اختر إذاعة لتبدأ</strong><span id="player-status" role="status" aria-live="polite">لم يتم تشغيل أي محطة</span></div></div><div class="player-controls"><button id="master-toggle" class="round-button" disabled aria-label="تشغيل الإذاعة">▶</button><div class="volume-group"><button type="button" id="mute-toggle" class="round-button mute-button" aria-label="كتم الصوت" aria-pressed="false"></button><label id="volume-control" class="volume"><input id="volume" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="مستوى الصوت"></label><span id="volume-note" class="volume-note" hidden>مستوى الصوت من أزرار الجهاز</span></div></div></aside>
 <footer>أثير القرآن <span>·</span> نافذتك إلى إذاعات القرآن الكريم</footer>
-<audio id="radio" preload="none"></audio>
+<audio id="radio" preload="none" playsinline></audio>
 <noscript><p class="noscript">فعّل JavaScript لاستخدام مشغّل الإذاعات.</p></noscript>
 </body></html>
