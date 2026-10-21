@@ -12,5 +12,6 @@
   },
   "build": {
     "command": "node scripts/build.mjs"
-  }
+  },
+  "workers_dev": true
 }

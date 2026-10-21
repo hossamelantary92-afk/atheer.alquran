@@ -1,3 +1,4 @@
+import {relaySharjah} from './sharjah.mjs';
 // Only these known stations can be proxied. No caller-supplied URL is accepted.
 export const FEEDS = Object.freeze({
   cairo: 'https://stream.radiojar.com/8s5u5tpdtwzuv',
@@ -17,6 +18,7 @@ function secureAudioURL(value, base, station) {
   return url.href;
 }
 export async function relayAudio(request, station, fetcher = fetch) {
+  if (station === 'sharjah') return relaySharjah(request, fetcher);
   if (!FEEDS[station]) return new Response('Unknown station', {status: 404});
   if (!['GET', 'HEAD'].includes(request.method)) {
     return new Response('Method not allowed', {status: 405, headers: {Allow: 'GET, HEAD'}});
@@ -29,7 +31,6 @@ export async function relayAudio(request, station, fetcher = fetch) {
   const release = () => request.signal.removeEventListener('abort', abort);
   async function openAudio() {
     let url = FEEDS[station];
-    if (station === 'sharjah') url += '?athir=' + Date.now();
     for (let hop = 0; hop < 8; hop++) {
       // A deadline for opening EACH connection only, never for the whole broadcast.
       const timer = setTimeout(abort, 20000);
@@ -68,30 +69,13 @@ export async function relayAudio(request, station, fetcher = fetch) {
         return new Response(null, {headers});
       }
       reader = upstream.body.getReader();
-      let received = 0;
       const stream = new ReadableStream({
         async pull(destination) {
           const idle = setTimeout(abort, 30000);
           try {
-            let item;
-            try { item = await reader.read(); }
-            catch (error) {
-              if (station !== 'sharjah' || received < 32768 || controller.signal.aborted) throw error;
-              // Some edges truncate the final byte instead of ending cleanly.
-              item = {done: true};
-            }
-            if (item.done && station === 'sharjah' && received >= 32768 && !controller.signal.aborted) {
-              // This source can end an individual AAC response. Reopen upstream
-              // inside the server, preserving ONE audio response on the phone.
-              const next = await openAudio();
-              if (next.headers.get('content-type').split(';')[0] !== headers['Content-Type']) {
-                await next.body.cancel(); throw new Error('Audio encoding changed');
-              }
-              reader = next.body.getReader(); received = 0;
-              item = await reader.read();
-            }
+            const item = await reader.read();
             if (item.done) { release(); destination.close(); }
-            else {received += item.value.byteLength; destination.enqueue(item.value);}
+            else destination.enqueue(item.value);
           } catch (error) { release(); controller.abort(); destination.error(error); }
           finally { clearTimeout(idle); }
         },

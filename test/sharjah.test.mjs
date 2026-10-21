@@ -1,0 +1,51 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {AdtsFrames,relaySharjah} from '../relay/sharjah.mjs';
+function frame(payload=32,frequency=3) {
+ const size=7+payload;const b=new Uint8Array(size).fill(0x22);
+ b.set([255,241,0x40|(frequency<<2),0x80|(size>>11),(size>>3)&255,((size&7)<<5)|31,252]);return b;
+}
+const req=()=>new Request('https://athir.example/api/audio/sharjah');
+function holdBody(chunk){let sent=false;return new ReadableStream({pull(c){if(!sent){sent=true;c.enqueue(chunk)}},cancel(){}})}
+test('ADTS frames remain exact across all possible chunk boundaries',()=>{
+ const f=frame();for(let cut=0;cut<=f.length;cut++){
+  const parser=new AdtsFrames();const a=parser.push(f.slice(0,cut)),b=parser.push(f.slice(cut));
+  assert.deepEqual(Buffer.concat([a,b]),Buffer.from(f));
+ }
+});
+test('drops an incomplete tail at EOF instead of splicing it into the next stream',()=>{
+ const f=frame();const parser=new AdtsFrames();assert.equal(parser.push(f.slice(0,15)).length,0);
+ parser.reset();assert.deepEqual(parser.push(f),f);
+});
+test('discards leading noise and refuses a codec change between sessions',()=>{
+ const parser=new AdtsFrames();const f=frame();assert.deepEqual(parser.push(Buffer.concat([Buffer.from('junk'),f])),f);
+ parser.reset();assert.throws(()=>parser.push(frame(32,4)),/configuration changed/);
+});
+test('small finite AAC responses reconnect; Content-Type is standard audio/aac',async()=>{
+ let calls=0;const f=frame();
+ const r=await relaySharjah(req(),async()=>{calls++;return new Response(f,{headers:{'Content-Type':'audio/aacp'}})});
+ assert.equal(r.headers.get('Content-Type'),'audio/aac');
+ const rd=r.body.getReader();assert.deepEqual((await rd.read()).value,f);assert.deepEqual((await rd.read()).value,f);
+ assert.equal(calls,2);await rd.cancel();
+});
+test('retries a failed reconnect inside the SAME downstream response',async()=>{
+ let calls=0;const f=frame();
+ const r=await relaySharjah(req(),async()=>{
+  calls++;if(calls===2)return new Response('temporary',{status:503});
+  return new Response(calls===1?f:holdBody(f),{headers:{'Content-Type':'audio/aac'}});
+ });
+ const rd=r.body.getReader();await rd.read();assert.deepEqual((await rd.read()).value,f);assert.equal(calls,3);await rd.cancel();
+});
+test('recovers from truncated upstream read and omits its incomplete final frame',async()=>{
+ let calls=0;const f=frame();let pulls=0;
+ const r=await relaySharjah(req(),async()=>{
+  calls++;return new Response(calls===1?new ReadableStream({pull(c){if(pulls++===0)c.enqueue(Buffer.concat([f,f.slice(0,12)]));else c.error(new Error('truncated'))}}):holdBody(f),{headers:{'Content-Type':'audio/aacp'}});
+ });
+ const rd=r.body.getReader();assert.deepEqual((await rd.read()).value,f);assert.deepEqual((await rd.read()).value,f);await rd.cancel();
+});
+test('does not forward bytes until AAC is validated, and cancels upstream',async()=>{
+ const r=await relaySharjah(req(),async()=>new Response('bad',{headers:{'Content-Type':'text/html'}}));assert.equal(r.status,502);
+ let signal;
+ const good=await relaySharjah(req(),async(u,o)=>{signal=o.signal;return new Response(holdBody(frame()),{headers:{'Content-Type':'audio/aac'}})});
+ await good.body.cancel();assert.equal(signal.aborted,true);
+});

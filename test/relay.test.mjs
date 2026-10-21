@@ -36,9 +36,3 @@ test('rejects POST and detects redirect loops',async()=>{
 test('HEAD validates upstream and returns no streaming body',async()=>{
  const r=await relayAudio(request('HEAD'),'cairo',async()=>new Response('audio',{headers:{'Content-Type':'audio/mpeg'}}));assert.equal(r.status,200);assert.equal(r.body,null);
 });
-test('Sharjah continues the same downstream AAC response when upstream ends',async()=>{
- let calls=0;const payload=new Uint8Array(32768).fill(7);
- const r=await relayAudio(request(),'sharjah',async(url)=>{calls++;assert.match(url,/^https:\/\/live\.kwikmotion\.com\/.*\?athir=/);return new Response(payload,{headers:{'Content-Type':'audio/aacp'}})});
- const rd=r.body.getReader();assert.equal((await rd.read()).value.byteLength,32768);
- assert.equal((await rd.read()).value.byteLength,32768);assert.equal(calls,2);await rd.cancel();
-});

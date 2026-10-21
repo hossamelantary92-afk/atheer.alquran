@@ -5,6 +5,7 @@ export default {
     if (path === '/assets/config.js') return new Response('window.ATHIR_CONFIG={relayBase:"/api/audio"};', {
       headers: {'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'}
     });
+    if (path === '/api/status') return Response.json({version:'7.1',sharjah:'aac-framed-reconnect'});
     const match = /^\/api\/audio\/(cairo|saudi|sharjah)$/.exec(path);
     if (match) return relayAudio(request, match[1]);
     if (path.startsWith('/api/')) return new Response('Not found', {status: 404});
