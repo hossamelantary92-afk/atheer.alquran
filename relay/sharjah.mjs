@@ -53,7 +53,8 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
     let response;
     try {
       response = await fetcher(URL_BASE + '?athir=' + Date.now(), {
-        redirect:'error', signal:connection.signal, cache:'no-store',
+        // Workers supports follow/manual only. Inspect 3xx instead of using error.
+        redirect:'manual', signal:connection.signal, cache:'no-store',
         headers:{Accept:'audio/aac, audio/aacp', 'Icy-MetaData':'0', 'Cache-Control':'no-cache'}
       });
     } finally {clearTimeout(timer);}
@@ -101,7 +102,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
     throw new Error('Listener disconnected');
   }
   const headers = {'Content-Type':'audio/aac', 'Cache-Control':'no-store, no-transform',
-    'X-Content-Type-Options':'nosniff', 'X-Accel-Buffering':'no', 'X-Athir-Relay':'sharjah-7.1'};
+    'X-Content-Type-Options':'nosniff', 'X-Accel-Buffering':'no', 'X-Athir-Relay':'sharjah-7.1.2'};
   try {
     // Verify actual AAC bytes, not just the provider's Content-Type header.
     const first = await nextFrames();
@@ -120,7 +121,7 @@ export async function relaySharjah(request, fetcher = fetch, report = () => {}) 
     return new Response(body,{headers});
   } catch (_) {
     end(); return new Response('Sharjah audio source is temporarily unavailable.', {
-      status:502,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Athir-Relay':'sharjah-7.1'}
+      status:502,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Athir-Relay':'sharjah-7.1.2'}
     });
   }
 }
@@ -131,7 +132,7 @@ export async function diagnoseSharjah(request, fetcher = fetch) {
   const started = Date.now(); let issue = null, attempts = 0;
   const probe = new Request(request.url, {method:'HEAD', signal:request.signal});
   const result = await relaySharjah(probe, fetcher, item => {issue = item; attempts++;});
-  return Response.json({version:'7.1.1', station:'sharjah',
+  return Response.json({version:'7.1.2', station:'sharjah',
     ok: result.ok, audioValidated: result.ok, elapsedMs:Date.now()-started,
     failedAttempts:attempts, lastFailure:issue},
     {headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});

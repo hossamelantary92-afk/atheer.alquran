@@ -59,3 +59,17 @@ test('diagnosis distinguishes an upstream rejection from an AAC or network error
  const good=await diagnoseSharjah(req(),async()=>new Response(holdBody(frame()),{headers:{'Content-Type':'audio/aac'}}));
  const g=await good.json();assert.equal(g.ok,true);assert.equal(g.audioValidated,true);
 });
+
+test('uses Workers-supported manual redirects and never forwards a redirect body as audio',async()=>{
+ let calls=0;
+ const fetcher=async(u,options)=>{
+  assert.equal(options.redirect,'manual');calls++;
+  return new Response('redirect',{status:302,headers:{Location:'https://untrusted.example/audio'}});
+ };
+ const r=await diagnoseSharjah(req(),fetcher);const info=await r.json();
+ assert.equal(info.ok,false);assert.equal(info.lastFailure.sourceStatus,302);assert.equal(calls,3);
+ const ok=await relaySharjah(new Request(req(),{method:'HEAD'}),async(u,o)=>{
+  assert.equal(o.redirect,'manual');return new Response(holdBody(frame()),{headers:{'Content-Type':'audio/aac'}});
+ });
+ assert.equal(ok.status,200);assert.equal(ok.body,null);
+});

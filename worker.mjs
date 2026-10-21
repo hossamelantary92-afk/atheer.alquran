@@ -6,7 +6,7 @@ export default {
     if (path === '/assets/config.js') return new Response('window.ATHIR_CONFIG={relayBase:"/api/audio"};', {
       headers: {'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'}
     });
-    if (path === '/api/status') return Response.json({version:'7.1.1',sharjah:'aac-framed-reconnect'});
+    if (path === '/api/status') return Response.json({version:'7.1.2',sharjah:'aac-framed-reconnect'});
     if (path === '/api/diagnostics/sharjah') {
       if (request.method !== 'GET') return new Response('Method not allowed',{status:405});
       return diagnoseSharjah(request);
